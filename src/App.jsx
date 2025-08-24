@@ -11,22 +11,42 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 
 function App() {
   const [gifts, setGifts] = useState([]);
+  const [viewers, setViewers] = useState([]);
   const [videoUrl, setVideoUrl] = useState(EntranceVideo)
   const [health, setHealth] = useState(100);
   const [playerAHealth, setPlayerAHealth] = useState(100);
   const [playerBHealth, setPlayerBHealth] = useState(100);
 
+  const setupEventListeners = () => {
+    const { streams, multiplayer } = window.beemi;
+
+    streams.onViewerJoin((data) => {
+      console.log("Viewer joined:", data);
+      setViewers(prev => [...prev, data.user]);
+    });
+
+    streams.onChat((data) => console.log("Chat:", data));
+    streams.onGift((data) => console.log("Gift:", data));
+    streams.onLike((data) => console.log("Like:", data));
+    streams.onFollow((data) => console.log("Follow:", data));
+
+    // Optional multiplayer
+    multiplayer.crdt.watch("gameState", (value, oldValue) => {
+      console.log("CRDT gameState changed:", oldValue, "->", value);
+    });
+  };
+
+  // 2️⃣ Initialize SDK
   useEffect(() => {
-      function initializeBeemiSDK() {
-      if (typeof window.beemi !== "undefined" && window.beemi.isReady()) {
+    const initializeBeemiSDK = () => {
+      if (window.beemi && window.beemi.isReady()) {
         console.log("✅ Beemi SDK is ready");
-        setupEventListeners(); // Step 2
+        setupEventListeners(); // ✅ now defined
       } else {
         console.log("⏳ Waiting for Beemi SDK...");
         setTimeout(initializeBeemiSDK, 100);
       }
-    }
-
+    };
     initializeBeemiSDK();
   }, []);
 
