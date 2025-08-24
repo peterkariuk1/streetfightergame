@@ -11,16 +11,59 @@ import FavoriteIcon from "@mui/icons-material/Favorite";
 
 function App() {
   const [gifts, setGifts] = useState([]);
+  const [viewers, setViewers] = useState([]);
   const [videoUrl, setVideoUrl] = useState(EntranceVideo)
   const [health, setHealth] = useState(100);
+  const [playerAHealth, setPlayerAHealth] = useState(100);
+  const [playerBHealth, setPlayerBHealth] = useState(100);
 
-  // Mock timer to decrease health gradually
+  const setupEventListeners = () => {
+    const { streams, multiplayer } = window.beemi;
+
+    streams.onViewerJoin((data) => {
+      console.log("Viewer joined:", data);
+      setViewers(prev => [...prev, data.user]);
+    });
+
+    streams.onChat((data) => console.log("Chat:", data));
+    streams.onGift((data) => console.log("Gift:", data));
+    streams.onLike((data) => console.log("Like:", data));
+    streams.onFollow((data) => console.log("Follow:", data));
+
+    // Optional multiplayer
+    multiplayer.crdt.watch("gameState", (value, oldValue) => {
+      console.log("CRDT gameState changed:", oldValue, "->", value);
+    });
+  };
+
+  // 2️⃣ Initialize SDK
   useEffect(() => {
-    const interval = setInterval(() => {
-      setHealth((prev) => (prev > 0 ? prev - 5 : 0)); // reduce 5 per tick
-    }, 1000);
-    return () => clearInterval(interval);
+    const initializeBeemiSDK = () => {
+      if (window.beemi && window.beemi.isReady()) {
+        console.log("✅ Beemi SDK is ready");
+        setupEventListeners(); // ✅ now defined
+      } else {
+        console.log("⏳ Waiting for Beemi SDK...");
+        setTimeout(initializeBeemiSDK, 100);
+      }
+    };
+    initializeBeemiSDK();
   }, []);
+
+  // handle players health
+  const handleClickA = () => {
+    // Player A attacks → Player B loses 5 HP
+    setPlayerBHealth(prev => Math.max(prev - 5, 0));
+    console.log(`Player A attacks Player B`, playerBHealth);
+    setVideoUrl(ApunchVideo);
+  };
+
+  const handleClickB = () => {
+    // Player B attacks → Player A loses 5 HP
+    setPlayerAHealth(prev => Math.max(prev - 5, 0));
+    setVideoUrl(BpunchVideo);
+  };
+
 
   // Utility function to pick color based on health %
   const getHealthColor = (value) => {
@@ -87,13 +130,13 @@ function App() {
                   {/* Progress bar */}
                   <LinearProgress
                     variant="determinate"
-                    value={health}
+                    value={playerAHealth}
                     sx={{
                       height: 20,
                       borderRadius: 5,
                       backgroundColor: "#333", // Empty bar color
                       "& .MuiLinearProgress-bar": {
-                        backgroundColor: getHealthColor(health),
+                        backgroundColor: getHealthColor(playerAHealth),
                         transition: "background-color 0.3s ease, width 0.5s ease",
                       },
                     }}
@@ -120,7 +163,7 @@ function App() {
                       variant="body2"
                       sx={{ ml: 1, color: "#fff", fontWeight: "bold" }}
                     >
-                      {health}%
+                      {playerAHealth}%
                     </Typography>
                   </Box>
                 </Box>
@@ -138,13 +181,13 @@ function App() {
                   {/* Progress bar */}
                   <LinearProgress
                     variant="determinate"
-                    value={health}
+                    value={playerBHealth}
                     sx={{
                       height: 20,
                       borderRadius: 5,
                       backgroundColor: "#333", // Empty bar color
                       "& .MuiLinearProgress-bar": {
-                        backgroundColor: getHealthColor(health),
+                        backgroundColor: getHealthColor(playerBHealth),
                         transition: "background-color 0.3s ease, width 0.5s ease",
                       },
                     }}
@@ -171,7 +214,7 @@ function App() {
                       variant="body2"
                       sx={{ ml: 1, color: "#fff", fontWeight: "bold" }}
                     >
-                      {health}%
+                      {playerBHealth}%
                     </Typography>
                   </Box>
                 </Box>
@@ -180,10 +223,9 @@ function App() {
             </div>
             <video className='game-video' src={videoUrl} muted loop autoPlay></video>
           </div>
-          <button onClick={handleVideoOne}>A</button>
-          <button onClick={handleVideoTwo}>B</button>
+          <button onClick={() => { handleVideoOne(); handleClickA(); }}>A</button>
+          <button onClick={() => { handleVideoTwo(); handleClickB(); }}>B</button>
           <button onClick={handleVideoThree}>C</button>
-
         </div>
       </div>
     </BeemiProvider>
